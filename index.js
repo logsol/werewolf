@@ -5,6 +5,9 @@ var util = require('util')
 
 var games = [];
 
+var STATE_WAIT = 1;
+var STATE_NIGHT = 1;
+
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
 });
@@ -17,8 +20,8 @@ io.on('connection', function(socket){
   });
 
   socket.on('newgame', function() {
-    var game = findOrCreateGame(undefined, socket);
-    insp(games);
+    var id = generateGameId();
+    socket.emit('generated', id);
   });
 
   socket.on('join', function(id, name) {
@@ -43,11 +46,17 @@ function findGame(id) {
   return game;
 }
 
+function generateGameId() {
+  var id;
+  do {
+    id = Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 4).toUpperCase();
+  } while(findGame(id));
+  return id;
+}
+
 function createGame(id, socket) {
   if (!id) {
-    do {
-      id = Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 4).toUpperCase();
-    } while(findGame(id));
+    id = generateGameId();
   }
   var game = {
     id: id, 
@@ -107,11 +116,10 @@ function destroyEmptyGames() {
         isEmpty = false;
         break;
       }
-
-      if (isEmpty) {
-        console.log("Deleting empty game " + games[g].id);
-        games.splice(g, 1);
-      }
+    }
+    if (isEmpty) {
+      console.log("Deleting empty game " + games[g].id);
+      games.splice(g, 1);
     }
   }
   insp(games);

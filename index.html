@@ -38,8 +38,8 @@ socket.on('connect', function () {
 	}
 });
 
-socket.on('created', function(msg){
-	console.log("created: " + msg)
+socket.on('generated', function(msg){
+	console.log("generated: " + msg)
 	if (!inGame) {
 		location.href += "#" + msg;
 		location.reload();
