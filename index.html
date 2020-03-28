@@ -9,8 +9,11 @@
     background-color: #444;
     color: #bbb;
   }
-  #join {
+  #join, #start {
     display: none;
+  }
+  .connected {
+    color: green;
   }
 </style>
 </head>
@@ -18,9 +21,14 @@
 <h1>Werwolf</h1>
 
 <div id="config">
-  <input id="name" value="Karl"/>
+  <p>Name: <input id="name" value="Karl"/></p>
 	<button id="newgame">Start a new game</button>
   <button id="join">Join</button>
+  <p id="wait">
+    <p id="state"></p>
+    <ul id="players"></ul>
+    <button id="start">Start Game</button>
+  </p>
 </div>
 
 </body>
@@ -30,6 +38,7 @@
 
 var socket = io();
 var inGame = location.href.includes("#");
+var isHost = false;
 
 socket.on('connect', function () {
 	if (inGame) {
@@ -52,8 +61,33 @@ socket.on('generated', function(msg){
 	}
 });
 
+socket.on('created', function(msg){
+  isHost = true;
+  $("#start").show();
+});
+
 socket.on('joined', function(msg){
-  $("#config").hide();
+  $("#join").hide();
+});
+
+socket.on('presence', function(msg){
+  var players = JSON.parse(msg);
+  $("#players").empty();
+  for (var x in players) {
+    var player = players[x];
+    var connectedClass = player.cn ? 'connected' : '';
+    $("#players").append($("<li>" + player.nm + "</li>").addClass(connectedClass));
+  }
+});
+
+socket.on('state', function(msg){
+  var state = JSON.parse(msg);
+  $("#state").text(state);
+});
+
+// WINDOW
+$(window).on('hashchange', function(e) {
+  location.reload();
 });
 
 // CLICKS
@@ -66,4 +100,7 @@ $("#join").click(function(){
   socket.emit('join', location.hash.substr(1), name);
 });
 
+$("#start").click(function(){
+  socket.emit('start');
+});
 </script>

@@ -12,15 +12,27 @@ var STATE_WITCH = 'witch';
 var STATE_WOLFS = 'wolfs';
 var STATE_WAKE = 'wake';
 
+var ROLE_WOLF = 'wolf';
+var ROLE_VILLAGER = 'villager';
+var ROLE_SEER = 'seer';
+var ROLE_WITCH = 'witch';
+
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
 });
 
-io.on('connection', function(socket){
+io.on('connection', function(socket) {
+
+  var game = undefined;
+  var player = undefined;
   
   socket.on('disconnect', function(){
     console.log('user disconnected');
     destroyEmptyGames();
+    
+    if (game) {
+      broadcastPresence(game);
+    }
   });
 
   socket.on('newgame', function() {
@@ -29,9 +41,25 @@ io.on('connection', function(socket){
   });
 
   socket.on('join', function(id, name) {
-    var game = findOrCreateGame(id, socket);
-    joinGame(game, name, socket);
-    insp(games);
+    var isHost = !findGame(id);
+    game = findOrCreateGame(id, socket);
+    
+    player = joinGame(game, name, socket);
+    player.isHost = isHost;
+
+    insp(games, 3);
+  });
+
+  socket.on('start', function() {
+    if (!player.isHost) {
+      socket.emit('cheater!');
+      return;
+    }
+    if (game.state != STATE_WAIT) {
+      //return;
+    }
+    assignRoles(game);
+    progress(game, player);
   });
 });
 
@@ -68,6 +96,7 @@ function createGame(id, socket) {
     state: STATE_WAIT
   }
   games.push(game);
+  socket.emit('created');
   console.log('created:', id)
   return game;
 }
@@ -82,10 +111,15 @@ function findOrCreateGame(id, socket) {
 }
 
 function joinGame(game, name, socket) {
-  findOrCreatePlayer(game, name, socket);
+  var player = findOrCreatePlayer(game, name, socket);
 
   socket.emit('joined', game.id);
   console.log('joined:', game.id);
+
+  broadcastPresence(game);
+  broadcastState(game);
+
+  return player;
 }
 
 function findOrCreatePlayer(game, name, socket) {
@@ -104,11 +138,31 @@ function findOrCreatePlayer(game, name, socket) {
   if (!player) {
     player = {
       name: name,
-      role: 0,
+      isHost: false,
+      role: undefined,
       dead: false, 
       socket: socket
     }
     game.players.push(player);
+  }
+
+  return player;
+}
+
+function listPlayers(game) {
+  var players = [];
+  for (var x in game.players) {
+    players.push({
+      nm: game.players[x].name,
+      cn: game.players[x].socket.connected
+    })
+  }
+  return players;
+}
+
+function broadcastPresence(game) {
+  for (var x in game.players) {
+    game.players[x].socket.emit('presence', JSON.stringify(listPlayers(game)))
   }
 }
 
@@ -129,9 +183,77 @@ function destroyEmptyGames() {
       games.splice(g, 1);
     }
   }
-  insp(games);
+  insp(games, 3);
 }
 
-function insp (object) {
-  console.log(util.inspect(object, {showHidden: false, depth: 3}));
+// *******************  game  *********************
+
+function broadcastState(game) {
+  for (var x in game.players) {
+    game.players[x].socket.emit('state', JSON.stringify(game.state))
+  }
+}
+
+function assignRoles(game) {
+  var players = game.players;
+  var numWolfs = Math.floor(players.length / 3);
+
+  var shuffled = [];
+  for (var x in players) {
+    shuffled.push(players[x]);
+  }
+  shuffle(shuffled);
+
+  for (var x in shuffled) {
+    var player = shuffled[x];
+    if (x < numWolfs) {
+      player.role = ROLE_WOLF;
+    } else if (x == numWolfs) {
+      player.role = ROLE_WITCH;
+    } else if (x == numWolfs + 1) {
+      player.role = ROLE_SEER;
+    }
+  }
+
+  insp(game, 2);
+}
+
+function progress(game, player) {
+  var previousState = game.state;
+  switch (game.state) {
+    case STATE_WAIT:
+      if (player.isHost) {
+        game.state = STATE_SLEEP;
+      }
+      break;
+  }
+
+  if (previousState != game.state) {
+    broadcastState(game);
+  }
+}
+
+// *******************  utils  *******************
+
+function insp (object, depth) {
+  console.log(util.inspect(object, {showHidden: false, depth: depth}));
+}
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
 }
