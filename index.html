@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Werwolf</title>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+<style type="text/css">
+  body {
+    background-color: #444;
+    color: #bbb;
+  }
+  #join {
+    display: none;
+  }
+</style>
+</head>
+<body>
+<h1>Werwolf</h1>
+
+<div id="config">
+  <input id="name" value="Karl"/>
+	<button id="newgame">Start a new game</button>
+  <button id="join">Join</button>
+</div>
+
+</body>
+</html>
+
+<script>
+
+var socket = io();
+var inGame = location.href.includes("#");
+
+socket.on('connect', function () {
+	if (inGame) {
+    $("#newgame").hide();
+    $("#join").show();
+	}
+});
+
+socket.on('created', function(msg){
+	console.log("created: " + msg)
+	if (!inGame) {
+		location.href += "#" + msg;
+		location.reload();
+	}
+});
+
+socket.on('joined', function(msg){
+  $("#config").hide();
+});
+
+// CLICKS
+$("#newgame").click(function(){
+	socket.emit('newgame');
+});
+
+$("#join").click(function(){
+  var name = $("#name").val();
+  socket.emit('join', location.hash.substr(1), name);
+});
+
+</script>
