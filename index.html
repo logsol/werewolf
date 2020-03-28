@@ -38,6 +38,12 @@ socket.on('connect', function () {
 	}
 });
 
+socket.on('deprecated', function () {
+  console.log("You are playing in another window now.");
+  alert("You are playing in another window now.");
+  location.href = "/";
+});
+
 socket.on('generated', function(msg){
 	console.log("generated: " + msg)
 	if (!inGame) {

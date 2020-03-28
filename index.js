@@ -5,8 +5,12 @@ var util = require('util')
 
 var games = [];
 
-var STATE_WAIT = 1;
-var STATE_NIGHT = 1;
+var STATE_WAIT = 'wait';
+var STATE_SLEEP = 'sleep';
+var STATE_SEER = 'seer';
+var STATE_WITCH = 'witch';
+var STATE_WOLFS = 'wolfs';
+var STATE_WAKE = 'wake';
 
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
@@ -60,10 +64,10 @@ function createGame(id, socket) {
   }
   var game = {
     id: id, 
-    players: []
+    players: [],
+    state: STATE_WAIT
   }
   games.push(game);
-  socket.emit('created', game.id);
   console.log('created:', id)
   return game;
 }
@@ -90,7 +94,10 @@ function findOrCreatePlayer(game, name, socket) {
   for(var x in game.players) {
     if (game.players[x].name === name) {
       player = game.players[x];
+      var old = player.socket;
       player.socket = socket;
+      old.emit('deprecated');
+      old.disconnect();
     }
   }
 
@@ -126,5 +133,5 @@ function destroyEmptyGames() {
 }
 
 function insp (object) {
-  console.log(util.inspect(object, {showHidden: false, depth: 4}));
+  console.log(util.inspect(object, {showHidden: false, depth: 3}));
 }
