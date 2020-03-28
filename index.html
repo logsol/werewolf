@@ -9,11 +9,23 @@
     background-color: #444;
     color: #bbb;
   }
-  #join, #start {
+  #join, #start, #game, #dead {
     display: none;
   }
   .connected {
     color: green;
+  }
+  .dead::after {
+    content: " ⚰️";
+  }
+  .you {
+    color: lime;
+  }
+  .host::after {
+    content: " (host)";
+  }
+  #role, #dead {
+    font-size: 3em;
   }
 </style>
 </head>
@@ -21,13 +33,20 @@
 <h1>Werwolf</h1>
 
 <div id="config">
-  <p>Name: <input id="name" value="Karl"/></p>
+  <p id="prejoin">
+    Name: <input id="name" value="Karl"/>
+    <button id="join">Join</button>
+  </p>
 	<button id="newgame">Start a new game</button>
-  <button id="join">Join</button>
+  
   <p id="wait">
     <p id="state"></p>
     <ul id="players"></ul>
     <button id="start">Start Game</button>
+  </p>
+  <p id="game">
+    <span id="role"></span>
+    <span id="dead">⚰️</span>
   </p>
 </div>
 
@@ -47,9 +66,13 @@ socket.on('connect', function () {
 	}
 });
 
+socket.on('disconnect', function () {
+  location.reload();
+});
+
 socket.on('deprecated', function () {
   console.log("You are playing in another window now.");
-  alert("You are playing in another window now.");
+  window.alert("You are playing in another window now.");
   location.href = "/";
 });
 
@@ -62,12 +85,16 @@ socket.on('generated', function(msg){
 });
 
 socket.on('created', function(msg){
+  // nothing to do here
+});
+
+socket.on('host', function(msg){
   isHost = true;
   $("#start").show();
 });
 
 socket.on('joined', function(msg){
-  $("#join").hide();
+  $("#prejoin").hide();
 });
 
 socket.on('presence', function(msg){
@@ -75,14 +102,39 @@ socket.on('presence', function(msg){
   $("#players").empty();
   for (var x in players) {
     var player = players[x];
-    var connectedClass = player.cn ? 'connected' : '';
-    $("#players").append($("<li>" + player.nm + "</li>").addClass(connectedClass));
+
+    var li = $("<li>" + player.nm + "</li>");
+    if (player.cn) {
+      li.addClass('connected');
+    }
+    if (player.dd) {
+      li.addClass('dead');
+    }
+    if (player.hs) {
+      li.addClass('host');
+    }
+    if (player.iy) {
+      li.addClass('you');
+    }
+    if (player.iy && player.dd) {
+      $("#dead").show();
+    }
+    
+    $("#players").append(li);
   }
 });
 
-socket.on('state', function(msg){
+socket.on('state', function(msg) {
   var state = JSON.parse(msg);
   $("#state").text(state);
+});
+
+socket.on('role', function(msg) {
+  var role = JSON.parse(msg);
+  $("#role").text(role);
+
+  $("#game").show();
+  $("#start").hide();
 });
 
 // WINDOW
@@ -103,4 +155,13 @@ $("#join").click(function(){
 $("#start").click(function(){
   socket.emit('start');
 });
+
+function init() {
+  var preset = location.host.split(".")[0];
+  if (!preset.includes("localhost")) {
+    $("#name").val(preset);
+  }
+
+}
+init()
 </script>

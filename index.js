@@ -12,10 +12,17 @@ var STATE_WITCH = 'witch';
 var STATE_WOLFS = 'wolfs';
 var STATE_WAKE = 'wake';
 
-var ROLE_WOLF = 'wolf';
-var ROLE_VILLAGER = 'villager';
-var ROLE_SEER = 'seer';
-var ROLE_WITCH = 'witch';
+var ROLE_WOLF = '🐺';
+var ROLE_VILLAGER = '🤷‍♂️';
+var ROLE_SEER = '👁';
+var ROLE_WITCH = '🧙‍♀️';
+
+// var ROLE_GIRL = '👧';
+// var ROLE_ARMOR = '🏹';
+// var ROLE_HUNTER = '🔫';
+
+// var ADDON_CAPTAIN = '🎖';
+// 💬📣📢🕹🎬🎭🌀
 
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
@@ -28,11 +35,17 @@ io.on('connection', function(socket) {
   
   socket.on('disconnect', function(){
     console.log('user disconnected');
-    destroyEmptyGames();
+
+    if (player && player.isHost) {
+      if (!game) throw new Error('has player but no game?');
+      electHost(game);
+    }
     
     if (game) {
       broadcastPresence(game);
     }
+
+    destroyEmptyGames();
   });
 
   socket.on('newgame', function() {
@@ -41,11 +54,17 @@ io.on('connection', function(socket) {
   });
 
   socket.on('join', function(id, name) {
-    var isHost = !findGame(id);
+    var isCreator = !findGame(id);
     game = findOrCreateGame(id, socket);
     
     player = joinGame(game, name, socket);
-    player.isHost = isHost;
+    if (isCreator) {
+      electHost(game);
+    }
+
+    if (game.state != STATE_WAIT) {
+      broadcastRoles(game);
+    }
 
     insp(games, 3);
   });
@@ -111,7 +130,15 @@ function findOrCreateGame(id, socket) {
 }
 
 function joinGame(game, name, socket) {
+  var existed = !!findPlayer(game, name);
   var player = findOrCreatePlayer(game, name, socket);
+
+  if (game.state != STATE_WAIT) {
+    if (!existed) {
+      player.role = ROLE_VILLAGER;
+      player.dead = true;
+    }
+  }
 
   socket.emit('joined', game.id);
   console.log('joined:', game.id);
@@ -122,20 +149,26 @@ function joinGame(game, name, socket) {
   return player;
 }
 
-function findOrCreatePlayer(game, name, socket) {
-
+function findPlayer(game, name) {
   var player;
   for(var x in game.players) {
     if (game.players[x].name === name) {
-      player = game.players[x];
-      var old = player.socket;
-      player.socket = socket;
-      old.emit('deprecated');
-      old.disconnect();
+      return game.players[x];
     }
   }
+  return player;
+}
 
-  if (!player) {
+function findOrCreatePlayer(game, name, socket) {
+
+  var player = findPlayer(game, name);
+  
+  if (player) {
+    var old = player.socket;
+    player.socket = socket;
+    old.emit('deprecated');
+    old.disconnect();
+  } else {
     player = {
       name: name,
       isHost: false,
@@ -149,12 +182,15 @@ function findOrCreatePlayer(game, name, socket) {
   return player;
 }
 
-function listPlayers(game) {
+function listPlayers(game, player) {
   var players = [];
   for (var x in game.players) {
     players.push({
+      iy: (game.players[x] == player),
       nm: game.players[x].name,
-      cn: game.players[x].socket.connected
+      cn: game.players[x].socket.connected,
+      dd: game.players[x].dead,
+      hs: game.players[x].isHost,
     })
   }
   return players;
@@ -162,7 +198,8 @@ function listPlayers(game) {
 
 function broadcastPresence(game) {
   for (var x in game.players) {
-    game.players[x].socket.emit('presence', JSON.stringify(listPlayers(game)))
+    var player = game.players[x];
+    player.socket.emit('presence', JSON.stringify(listPlayers(game, player)))
   }
 }
 
@@ -186,11 +223,32 @@ function destroyEmptyGames() {
   insp(games, 3);
 }
 
+function electHost(game) {
+  var elected = false;
+  for (var p in game.players) {
+    var player = game.players[p];
+    if (!elected && player.socket.connected) {
+      player.isHost = true;
+      player.socket.emit('host');
+      elected = true;
+    } else {
+      player.isHost = false;
+    }
+  }
+}
+
 // *******************  game  *********************
 
 function broadcastState(game) {
   for (var x in game.players) {
     game.players[x].socket.emit('state', JSON.stringify(game.state))
+  }
+}
+
+function broadcastRoles(game) {
+  for (var x in game.players) {
+    var player = game.players[x];
+    player.socket.emit('role', JSON.stringify(player.role));
   }
 }
 
@@ -212,9 +270,12 @@ function assignRoles(game) {
       player.role = ROLE_WITCH;
     } else if (x == numWolfs + 1) {
       player.role = ROLE_SEER;
+    } else {
+      player.role = ROLE_VILLAGER;
     }
   }
 
+  broadcastRoles(game);
   insp(game, 2);
 }
 
