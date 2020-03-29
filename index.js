@@ -5,12 +5,12 @@ var util = require('util')
 
 var games = [];
 
-var STATE_WAIT = 'wait';
-var STATE_SLEEP = 'sleep';
-var STATE_SEER = 'seer';
-var STATE_WITCH = 'witch';
-var STATE_WOLFS = 'wolfs';
-var STATE_WAKE = 'wake';
+var STATE_WAIT = '⏳ Waiting for players';
+var STATE_NIGHT = '🌙 Night falls';
+var STATE_SEER = '👁 Oracle time';
+var STATE_WITCH = '🧙‍♀️ Potion turn';
+var STATE_WOLFS = '🐺 Midnight snack';
+var STATE_DAY = '☀️ Daytime';
 
 var ROLE_WOLF = '🐺';
 var ROLE_VILLAGER = '🤷‍♂️';
@@ -20,9 +20,8 @@ var ROLE_WITCH = '🧙‍♀️';
 // var ROLE_GIRL = '👧';
 // var ROLE_ARMOR = '🏹';
 // var ROLE_HUNTER = '🔫';
-
 // var ADDON_CAPTAIN = '🎖';
-// 💬📣📢🕹🎬🎭🌀
+// 🎬🎭🌀
 
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
@@ -58,27 +57,42 @@ io.on('connection', function(socket) {
     game = findOrCreateGame(id, socket);
     
     player = joinGame(game, name, socket);
-    if (isCreator) {
+    if (player == game.players[0]) {
       electHost(game);
+      emitHostAction(game);
     }
 
-    if (game.state != STATE_WAIT) {
-      broadcastRoles(game);
-    }
+    broadcastRoles(game);
+    broadcastPresence(game);
+    broadcastState(game);
 
     insp(games, 3);
   });
 
-  socket.on('start', function() {
+  socket.on('progress', function() {
     if (!player.isHost) {
       socket.emit('cheater!');
       return;
     }
-    if (game.state != STATE_WAIT) {
-      //return;
+    progress(game);
+  });
+
+  socket.on('kill', function(index) {
+    if (!player.isHost || index >= game.players.length) {
+      socket.emit('cheater!');
+      return;
     }
-    assignRoles(game);
-    progress(game, player);
+    game.players[index].dead = true;
+    broadcastPresence(game);
+  });
+
+  socket.on('revive', function(index) {
+    if (!player.isHost || index >= game.players.length) {
+      socket.emit('cheater!');
+      return;
+    }
+    game.players[index].dead = false;
+    broadcastPresence(game);
   });
 });
 
@@ -112,7 +126,9 @@ function createGame(id, socket) {
   var game = {
     id: id, 
     players: [],
-    state: STATE_WAIT
+    host: undefined,
+    state: STATE_WAIT,
+    victim: undefined
   }
   games.push(game);
   socket.emit('created');
@@ -133,19 +149,17 @@ function joinGame(game, name, socket) {
   var existed = !!findPlayer(game, name);
   var player = findOrCreatePlayer(game, name, socket);
 
+  socket.emit('joined', game.id);
+
   if (game.state != STATE_WAIT) {
     if (!existed) {
       player.role = ROLE_VILLAGER;
       player.dead = true;
     }
+
   }
 
-  socket.emit('joined', game.id);
-  console.log('joined:', game.id);
-
-  broadcastPresence(game);
-  broadcastState(game);
-
+  console.log(name, 'joined', game.id);
   return player;
 }
 
@@ -191,6 +205,7 @@ function listPlayers(game, player) {
       cn: game.players[x].socket.connected,
       dd: game.players[x].dead,
       hs: game.players[x].isHost,
+      rl: game.players[x].dead ? game.players[x].role : undefined
     })
   }
   return players;
@@ -224,17 +239,24 @@ function destroyEmptyGames() {
 }
 
 function electHost(game) {
-  var elected = false;
-  for (var p in game.players) {
-    var player = game.players[p];
-    if (!elected && player.socket.connected) {
-      player.isHost = true;
-      player.socket.emit('host');
-      elected = true;
-    } else {
-      player.isHost = false;
-    }
-  }
+  game.host = 0;
+  var host = game.players[game.host];
+  host.isHost = true;
+  host.role = '🕹';
+  host.socket.emit('host');
+
+  // var elected = false;
+  // for (var p in game.players) {
+  //   var player = game.players[p];
+  //   if (!elected && player.socket.connected) {
+  //     player.isHost = true;
+  //     player.socket.emit('host');
+  //     game.host = p;
+  //     elected = true;
+  //   } else {
+  //     player.isHost = false;
+  //   }
+  // }
 }
 
 // *******************  game  *********************
@@ -258,6 +280,9 @@ function assignRoles(game) {
 
   var shuffled = [];
   for (var x in players) {
+    if (players[x].isHost) {
+      continue;
+    }
     shuffled.push(players[x]);
   }
   shuffle(shuffled);
@@ -267,9 +292,9 @@ function assignRoles(game) {
     if (x < numWolfs) {
       player.role = ROLE_WOLF;
     } else if (x == numWolfs) {
-      player.role = ROLE_WITCH;
-    } else if (x == numWolfs + 1) {
       player.role = ROLE_SEER;
+    } else if (x == numWolfs + 1) {
+      player.role = ROLE_WITCH;
     } else {
       player.role = ROLE_VILLAGER;
     }
@@ -279,20 +304,111 @@ function assignRoles(game) {
   insp(game, 2);
 }
 
-function progress(game, player) {
+function progress(game) {
   var previousState = game.state;
   switch (game.state) {
     case STATE_WAIT:
-      if (player.isHost) {
-        game.state = STATE_SLEEP;
-      }
+      assignRoles(game);
+      game.state = STATE_NIGHT;
+      break;
+    case STATE_NIGHT:
+      game.state = STATE_SEER;
+      break;
+    case STATE_SEER:
+      game.state = STATE_WOLFS;
+      break;
+    case STATE_WOLFS:
+      game.state = STATE_WITCH;
+      break;
+    case STATE_WITCH:
+      game.state = STATE_DAY;
+      break;
+    case STATE_DAY:
+      game.state = STATE_NIGHT;
       break;
   }
+
+  emitHostAction(game);
 
   if (previousState != game.state) {
     broadcastState(game);
   }
+  insp(game, 2);
 }
+
+function emitHostAction(game) {
+  var action;
+
+  switch (game.state) {
+    case STATE_WAIT:
+      action = 'Start Game';
+      break;
+    case STATE_NIGHT:
+      action = 'Wake up Seer';
+      break;
+    case STATE_SEER:
+      action = 'Wake up Wolfs';
+      break;
+    case STATE_WOLFS:
+      action = 'Wake up Witch';
+      break;
+    case STATE_WITCH:
+      action = 'Wake up Village';
+      break;
+    case STATE_DAY:
+      action = 'Night comes';
+      break;
+  }
+
+  if (action) {
+    var host = game.players[game.host];
+    host.socket.emit('action', action);
+  }
+}
+
+function emitWitchInfo(game) {
+  var witch;
+  var poisonables = [];
+  for (var x in game.players) {
+    var player = game.players[x];
+    if (player.role == ROLE_WITCH) {
+      witch = player;
+      break;
+    }
+  }
+  if (witch) {
+    witch.socket.emit('witchInfo', {
+      vc: game.victim,
+      ps: 
+    })
+  }
+}
+
+/*
+function emitWolfInfo(game) {
+  var wolfs = [];
+  var indexes = [];
+  for (var x in game.players) {
+    var player = game.players[x];
+    if (player.role == ROLE_WOLF) {
+      wolfs.push(player);
+      indexes.push(x);
+    }
+  }
+
+  var selections = [];
+
+  var wolfinfo = {
+    wf: indexes,
+    sl: selections
+  };
+
+  for (var x in wolfs) {
+    var wolf = wolfs[x];
+    wolf.socket.emit('wolfinfo', JSON.stringify(wolfinfo));
+  }
+}
+*/
 
 // *******************  utils  *******************
 

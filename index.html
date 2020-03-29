@@ -3,13 +3,13 @@
 <head>
 <title>Werwolf</title>
 <script src="/socket.io/socket.io.js"></script>
-<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+<script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
 <style type="text/css">
   body {
     background-color: #444;
     color: #bbb;
   }
-  #join, #start, #game, #dead {
+  #progress, #game, #dead, #prejoin {
     display: none;
   }
   .connected {
@@ -21,28 +21,33 @@
   .you {
     color: lime;
   }
-  .host::after {
-    content: " (host)";
+  .host::before {
+    content: "🕹";
+  }
+  .wolf::before {
+    content: "🐺";
   }
   #role, #dead {
     font-size: 3em;
   }
+  .kill, .revive {
+    width: 50px;
+  }
 </style>
 </head>
 <body>
-<h1>Werwolf</h1>
 
 <div id="config">
   <p id="prejoin">
     Name: <input id="name" value="Karl"/>
     <button id="join">Join</button>
   </p>
-	<button id="newgame">Start a new game</button>
+	<button id="newgame">Create a new game</button>
   
   <p id="wait">
     <p id="state"></p>
     <ul id="players"></ul>
-    <button id="start">Start Game</button>
+    <button id="progress">?</button>
   </p>
   <p id="game">
     <span id="role"></span>
@@ -55,14 +60,23 @@
 
 <script>
 
+var STATE_WAIT = 'wait';
+var STATE_PREPARE = 'prepare';
+var STATE_SLEEP = 'sleep';
+var STATE_SEER = 'seer';
+var STATE_WITCH = 'witch';
+var STATE_WOLFS = 'wolfs';
+var STATE_WAKE = 'wake';
+
 var socket = io();
 var inGame = location.href.includes("#");
 var isHost = false;
+var role = undefined;
 
 socket.on('connect', function () {
 	if (inGame) {
     $("#newgame").hide();
-    $("#join").show();
+    $("#prejoin").show();
 	}
 });
 
@@ -90,7 +104,8 @@ socket.on('created', function(msg){
 
 socket.on('host', function(msg){
   isHost = true;
-  $("#start").show();
+  $("#progress").show();
+  $("#prejoin").hide();
 });
 
 socket.on('joined', function(msg){
@@ -103,7 +118,9 @@ socket.on('presence', function(msg){
   for (var x in players) {
     var player = players[x];
 
-    var li = $("<li>" + player.nm + "</li>");
+    var liHtml = '<li id="' + x + '"> ' + player.nm + "</li>"
+
+    var li = $(liHtml);
     if (player.cn) {
       li.addClass('connected');
     }
@@ -116,8 +133,24 @@ socket.on('presence', function(msg){
     if (player.iy) {
       li.addClass('you');
     }
-    if (player.iy && player.dd) {
-      $("#dead").show();
+    if (player.iy) {
+      if (player.dd) {
+        $("#dead").show();
+      } else {
+        $("#dead").hide();
+      }
+    }
+
+    if(isHost) {
+      if (!player.hs) {
+        var kill = $('<button class="kill">kill</button>');
+        var revive = $('<button class="revive">revive</button>');
+        if (player.dd) {
+          li.prepend(revive);
+        } else {
+          li.prepend(kill);
+        }
+      }
     }
     
     $("#players").append(li);
@@ -130,38 +163,67 @@ socket.on('state', function(msg) {
 });
 
 socket.on('role', function(msg) {
-  var role = JSON.parse(msg);
+  role = JSON.parse(msg);
   $("#role").text(role);
-
   $("#game").show();
-  $("#start").hide();
 });
 
-// WINDOW
-$(window).on('hashchange', function(e) {
-  location.reload();
+socket.on('action', function(msg) {
+  $("#progress").text(msg);
+  $("#progress").show();
 });
 
-// CLICKS
-$("#newgame").click(function(){
-	socket.emit('newgame');
-});
+// socket.on('wolfinfo', function(msg) {
+//   var wolfinfo = JSON.parse(msg);
+//   for (var x in wolfinfo.wolfs) {
+//     var wf = wolfinfo.wolfs[x].wf;
+//     $("#players li").foreach(function(i, el) {
+//       if (i == wf) {
+//         el.addClass('wolf');
+//       }
+//     });
+//   }
+// });
 
-$("#join").click(function(){
-  var name = $("#name").val();
-  socket.emit('join', location.hash.substr(1), name);
-});
+$(document).ready(function() {
+  // WINDOW
+  $(window).on('hashchange', function(e) {
+    location.reload();
+  });
 
-$("#start").click(function(){
-  socket.emit('start');
-});
+  // CLICKS
+  $("#newgame").click(function(){
+    socket.emit('newgame');
+  });
 
-function init() {
-  var preset = location.host.split(".")[0];
-  if (!preset.includes("localhost")) {
-    $("#name").val(preset);
+  $("#join").click(function(){
+    var name = $("#name").val();
+    socket.emit('join', location.hash.substr(1), name);
+  });
+
+  // HOST CLICKS
+  $("#progress").click(function(){
+    socket.emit('progress');
+    $("#progress").hide();
+  });
+
+  $("#players").on('click', '.kill', function(e){
+    var index = $(e.target).parent().attr('id');
+    socket.emit('kill', index);
+  });
+
+  $("#players").on('click', '.revive', function(e){
+    var index = $(e.target).parent().attr('id');
+    socket.emit('revive', index);
+  });
+
+  function init() {
+    var preset = location.host.split(".")[0];
+    if (!preset.includes("localhost")) {
+      $("#name").val(preset);
+    }
   }
+  init();
+});
 
-}
-init()
 </script>

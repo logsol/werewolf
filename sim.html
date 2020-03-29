@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Sim</title>
+<style type="text/css">
+	body {
+		background-color: black;
+	}
+	.entity {
+		width: 100px;
+		height: 300px;
+		border: 1px dotted #555;
+	}
+</style>
+</head>
+<body>
+	<div id="controls">
+		Channel: <input name="channel"> 
+		<button id="add">Add Player</button>
+	</div>
+	<div class="sim">
+
+	</div>
+</body>
+</html>
+<script type="text/javascript">
+var names = [
+	"Karl", "Gustav", "Johann", "Jenni", "Peter", 
+	"Karen", "Joey", "Steve", "Matt", "Ariana", 
+	"Nicole", "Ferris", "Joana", "Donny", "Deborah", 
+	"Evin", "James", "Britney", "Christina", "Vanessa", 
+	"Gary", "Donna", "Elvis", "Mike", "Ricky"
+];
+
+var players = 0;
+
+$("add").click(function(){
+	var entity = $("<div>");
+	var iframe = $("<iframe>");
+	var buttons = $("<div>");
+	var remove = $("<button>");
+
+	entity.addClass('entity');
+
+	entity.append(iframe);
+	entity.append(buttons)
+	$("sim").append(entity);
+});
+
+</script>
