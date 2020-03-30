@@ -12,6 +12,11 @@
 
 <div id="container" class="clearfix">
 
+  <div id="selection">
+    <span class="name"></span>
+    <span class="role">🌀</span>
+  </div>
+
   <p id="prejoin">
     Name: <input id="name" value="Karl"/>
     <button id="join">Join</button>
@@ -24,6 +29,7 @@
     <ul id="players"></ul>
     <button id="progress">?</button>
   </p>
+
 </div>
 
 </body>
@@ -73,6 +79,7 @@ socket.on('created', function(msg){
 
 socket.on('host', function(msg){
   isHost = true;
+  $("#players").addClass('hostview')
   $("#progress").show();
   $("#prejoin").hide();
 });
@@ -186,11 +193,29 @@ $(document).ready(function() {
   $("#players").on('click', '.kill', function(e){
     var index = $(e.target).parent().attr('id');
     socket.emit('kill', index);
+    e.stopPropagation();
   });
 
   $("#players").on('click', '.revive', function(e){
     var index = $(e.target).parent().attr('id');
     socket.emit('revive', index);
+    e.stopPropagation();
+  });
+
+  $("#players").on('click', function(e){
+    var li = $(e.target).closest("li");
+    var name = $(".name", li).text();
+    var role = $(".role", li).text();
+
+    if (role == "🌀") {
+      $("#selection .name").text(name);
+      $("#selection .role").text(role);
+      $("#selection").show();
+    }
+  });
+
+  $("#selection").click(function(){
+    $("#selection").hide();
   });
 
   function init() {

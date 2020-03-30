@@ -10,6 +10,8 @@ body {
 }
 
 #container {
+  position: absolute;
+  left: calc(50% - 180px);
   max-width: 300px;
   margin: 30px auto;
   border: 1px dotted rgba(255,255,255,0.25);
@@ -35,7 +37,7 @@ button {
   border-radius: 10px;
 }
 
-.you {
+#players .you {
   color: #F2A03D;
   font-weight: bold;
 }
@@ -61,15 +63,20 @@ button {
   margin: 0;
 }
 
+.name {
+  text-transform: capitalize;
+  color: #F27C38;
+  text-align: center;
+}
+
 #players {
   margin: 0;
   padding: 0;
 }
 
 #players li {
-  color: #F27C38;
   display: block;
-  width: calc(33% - 16px);
+  width: calc(33% - 17px);
   margin-right: 5px;
   margin-bottom: 5px;
   padding: 5px;
@@ -79,9 +86,26 @@ button {
   float: left;
   list-style-type: none;
   background-color: rgba(0,0,0,0.25);
-  text-transform: capitalize;
   overflow: hidden;
   text-align: center;
+  cursor: default;
+}
+
+#container .hostview li {
+  height: 185px;
+}
+
+#selection {
+  display: none;
+  background-color: black;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  font-size: 4em;
+  text-align: center;
+  cursor: default;
 }
 
 .clearfix::after {
