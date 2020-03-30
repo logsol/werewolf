@@ -4,54 +4,25 @@
 <title>Werwolf</title>
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
-<style type="text/css">
-  body {
-    background-color: #444;
-    color: #bbb;
-  }
-  #progress, #game, #dead, #prejoin {
-    display: none;
-  }
-  .connected {
-    color: green;
-  }
-  .dead::after {
-    content: " ⚰️";
-  }
-  .you {
-    color: lime;
-  }
-  .host::before {
-    content: "🕹";
-  }
-  .wolf::before {
-    content: "🐺";
-  }
-  #role, #dead {
-    font-size: 3em;
-  }
-  .kill, .revive {
-    width: 50px;
-  }
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1"
 </head>
 <body>
 
-<div id="config">
+<div id="container" class="clearfix">
+
   <p id="prejoin">
     Name: <input id="name" value="Karl"/>
     <button id="join">Join</button>
   </p>
 	<button id="newgame">Create a new game</button>
   
-  <p id="wait">
-    <p id="state"></p>
-    <ul id="players"></ul>
-    <button id="progress">?</button>
-  </p>
   <p id="game">
     <span id="role"></span>
-    <span id="dead">⚰️</span>
+    <span id="state"></span>
+    <ul id="players"></ul>
+    <button id="progress">?</button>
   </p>
 </div>
 
@@ -85,13 +56,11 @@ socket.on('disconnect', function () {
 });
 
 socket.on('deprecated', function () {
-  console.log("You are playing in another window now.");
   window.alert("You are playing in another window now.");
   location.href = "/";
 });
 
 socket.on('generated', function(msg){
-	console.log("generated: " + msg)
 	if (!inGame) {
 		location.href += "#" + msg;
 		location.reload();
@@ -118,42 +87,51 @@ socket.on('presence', function(msg){
   for (var x in players) {
     var player = players[x];
 
-    var liHtml = '<li id="' + x + '"> ' + player.nm + "</li>"
+    var liHtml = "";
+    liHtml += '<li id="' + x + '">'
+    liHtml += '<div class="name">' + player.nm + '</div>';
+    liHtml += '<span class="role">🌀</span>';
+    liHtml += '<span class="reveal"></span>';
+    liHtml += '<span class="disconnected">🔌</span>';
+    liHtml +=  "</li>";
 
     var li = $(liHtml);
-    if (player.cn) {
-      li.addClass('connected');
-    }
-    if (player.dd) {
-      li.addClass('dead');
-    }
-    if (player.hs) {
-      li.addClass('host');
-    }
-    if (player.iy) {
-      li.addClass('you');
-    }
-    if (player.iy) {
-      if (player.dd) {
-        $("#dead").show();
-      } else {
-        $("#dead").hide();
-      }
-    }
 
-    if(isHost) {
+    if(isHost && role) {
       if (!player.hs) {
         var kill = $('<button class="kill">kill</button>');
         var revive = $('<button class="revive">revive</button>');
         if (player.dd) {
-          li.prepend(revive);
+          li.append(revive);
         } else {
-          li.prepend(kill);
+          li.append(kill);
         }
       }
     }
     
     $("#players").append(li);
+
+    if (!player.cn) {
+      $('.disconnected', li).show();
+    }
+    if (player.rv) {
+      $('.reveal', li).show();
+      $('.reveal', li).text(player.rv); 
+    }
+    if (player.dd) {
+      $('.role', li).text("⚰️");
+    }
+    if (player.hs) {
+      $('.role', li).text("🗣");
+    }
+    if (player.iy) {
+      $('.name', li).addClass('you');
+    }
+    if (player.iy) {
+      if (player.dd) {
+        $('#role').text("⚰️");
+      }
+    }
   }
 });
 
@@ -170,7 +148,6 @@ socket.on('role', function(msg) {
 
 socket.on('action', function(msg) {
   $("#progress").text(msg);
-  $("#progress").show();
 });
 
 // socket.on('wolfinfo', function(msg) {
@@ -204,7 +181,6 @@ $(document).ready(function() {
   // HOST CLICKS
   $("#progress").click(function(){
     socket.emit('progress');
-    $("#progress").hide();
   });
 
   $("#players").on('click', '.kill', function(e){

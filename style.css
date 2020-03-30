@@ -1,0 +1,91 @@
+body {
+  background-color: #3f474c;
+  color: #bbb;
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.5em;
+}
+
+#progress, #game, #dead, #prejoin {
+  display: none;
+}
+
+#container {
+  max-width: 300px;
+  margin: 30px auto;
+  border: 1px dotted rgba(255,255,255,0.25);
+  padding: 5%;
+  background-color: rgba(0,0,0,0.25);
+}
+
+button, input {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 10px auto;
+  border: 1px solid rgba(0,0,0,0.25);
+  padding: 10px;
+  background-color: rgba(0,0,0,0.25);
+  color: #bbb;
+  font-size: 1em;
+  font-family: 'Oswald', sans-serif;
+}
+
+button {
+  border-left-color: rgba(255,255,255,0.15);
+  border-top-color: rgba(255,255,255,0.15);
+  border-radius: 10px;
+}
+
+.you {
+  color: #F2A03D;
+  font-weight: bold;
+}
+
+.host, .disconnected {
+  display: none;
+}
+
+.role {
+  font-size: 2em;
+  display: block;
+}
+
+#role, #dead {
+  font-size: 2em;
+  float: right;
+  margin-top: -0.4em;
+}
+
+.kill, .revive {
+  font-size: 0.5em;
+  padding: 5px;
+  margin: 0;
+}
+
+#players {
+  margin: 0;
+  padding: 0;
+}
+
+#players li {
+  color: #F27C38;
+  display: block;
+  width: calc(33% - 16px);
+  margin-right: 5px;
+  margin-bottom: 5px;
+  padding: 5px;
+  border: 1px solid rgba(0,0,0,0.25);
+  border-radius: 8px;
+  height: 150px;
+  float: left;
+  list-style-type: none;
+  background-color: rgba(0,0,0,0.25);
+  text-transform: capitalize;
+  overflow: hidden;
+  text-align: center;
+}
+
+.clearfix::after {
+  content: "";
+  clear: both;
+  display: table;
+}

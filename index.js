@@ -23,8 +23,12 @@ var ROLE_WITCH = '🧙‍♀️';
 // var ADDON_CAPTAIN = '🎖';
 // 🎬🎭🌀
 
-app.get('/', function(req, res){
+app.get('/', function(req, res) {
   res.sendFile(__dirname + '/index.html');
+});
+
+app.get('/style.css', function(req, res) {
+  res.sendFile(__dirname + '/style.css');
 });
 
 io.on('connection', function(socket) {
@@ -62,9 +66,11 @@ io.on('connection', function(socket) {
       emitHostAction(game);
     }
 
-    broadcastRoles(game);
-    broadcastPresence(game);
+    if (game.state != STATE_WAIT) {
+      broadcastRoles(game);
+    }
     broadcastState(game);
+    broadcastPresence(game);
 
     insp(games, 3);
   });
@@ -114,7 +120,8 @@ function findGame(id) {
 function generateGameId() {
   var id;
   do {
-    id = Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 4).toUpperCase();
+    id = Math.random().toString(36).replace(/[^a-z]+/g, '');
+    id = id.substr(0, 4).toUpperCase();
   } while(findGame(id));
   return id;
 }
@@ -205,7 +212,7 @@ function listPlayers(game, player) {
       cn: game.players[x].socket.connected,
       dd: game.players[x].dead,
       hs: game.players[x].isHost,
-      rl: game.players[x].dead ? game.players[x].role : undefined
+      rv: game.players[x].dead ? game.players[x].role : undefined
     })
   }
   return players;
@@ -242,7 +249,7 @@ function electHost(game) {
   game.host = 0;
   var host = game.players[game.host];
   host.isHost = true;
-  host.role = '🕹';
+  host.role = '🗣';
   host.socket.emit('host');
 
   // var elected = false;
@@ -309,6 +316,7 @@ function progress(game) {
   switch (game.state) {
     case STATE_WAIT:
       assignRoles(game);
+      broadcastPresence(game);
       game.state = STATE_NIGHT;
       break;
     case STATE_NIGHT:
@@ -378,8 +386,7 @@ function emitWitchInfo(game) {
   }
   if (witch) {
     witch.socket.emit('witchInfo', {
-      vc: game.victim,
-      ps: 
+      vc: game.victim
     })
   }
 }
