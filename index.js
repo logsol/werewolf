@@ -161,7 +161,7 @@ function joinGame(game, name, socket) {
   if (game.state != STATE_WAIT) {
     if (!existed) {
       player.role = ROLE_VILLAGER;
-      player.dead = true;
+      player.isDead = true;
     }
 
   }
@@ -194,7 +194,7 @@ function findOrCreatePlayer(game, name, socket) {
       name: name,
       isHost: false,
       role: undefined,
-      dead: false,
+      isDead: false,
       isVictim: false,
       socket: socket
     }
@@ -209,7 +209,7 @@ function listPlayers(game, player) {
   for (var x in game.players) {
 
     var reveal = undefined;
-    if (player.isHost || player.dead || game.players[x].dead) {
+    if (player.isHost || player.isDead || game.players[x].isDead) {
       reveal = game.players[x].role;
     }
 
@@ -217,7 +217,7 @@ function listPlayers(game, player) {
       iy: (game.players[x] == player),
       nm: game.players[x].name,
       cn: game.players[x].socket.connected,
-      dd: game.players[x].dead,
+      dd: game.players[x].isDead,
       vc: game.players[x].isVictim,
       hs: game.players[x].isHost,
       rv: reveal
@@ -328,14 +328,18 @@ function progress(game) {
       game.state = STATE_NIGHT;
       break;
     case STATE_NIGHT:
-      game.state = STATE_SEER;
-      break;
+      if(!isDead(game, ROLE_SEER)) {
+        game.state = STATE_SEER;
+        break;
+      }
     case STATE_SEER:
       game.state = STATE_WOLFS;
       break;
     case STATE_WOLFS:
-      game.state = STATE_WITCH;
-      break;
+      if(!isDead(game, ROLE_SEER)) {
+        game.state = STATE_WITCH;
+        break;
+      }
     case STATE_WITCH:
       killVictims(game);
       game.state = STATE_DAY;
@@ -363,14 +367,18 @@ function emitHostAction(game) {
       action = 'Start Game';
       break;
     case STATE_NIGHT:
-      action = 'Wake up Seer';
-      break;
+      if(!isDead(game, ROLE_SEER)) {
+        action = 'Wake up Seer';
+        break;
+      }
     case STATE_SEER:
       action = 'Wake up Wolfs';
       break;
     case STATE_WOLFS:
-      action = 'Wake up Witch';
-      break;
+      if(!isDead(game, ROLE_WITCH)) {
+        action = 'Wake up Witch';
+        break;
+      }
     case STATE_WITCH:
       action = 'Wake up Village';
       break;
@@ -389,10 +397,20 @@ function killVictims(game) {
   for (var x in game.players) {
     var player = game.players[x];
     if (player.isVictim) {
-      player.dead = true;
+      player.isDead = true;
       player.isVictim = false;
     }
   }
+}
+
+function isDead(game, role) {
+  for (var x in game.players) {
+    var player = game.players[x];
+    if (player.role == role) {
+      return player.isDead;
+    }
+  }
+  return true;
 }
 
 /*

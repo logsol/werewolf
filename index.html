@@ -244,6 +244,7 @@ $(document).ready(function() {
     var preset = window.location.search.substr(1);
     if (preset) {
       $("#name").val(preset);
+      $("#join").trigger("click");
     } else {
       $("#name").focus();
     }
