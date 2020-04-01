@@ -20,7 +20,7 @@
   </div>
 
   <div id="prejoin">
-    Name: <input id="name" value="Karl"/>
+    Name: <input id="name" value=""/>
     <button id="join">Join</button>
   </div>
 	<button id="newgame">Create a new game</button>
@@ -193,6 +193,20 @@ $(document).ready(function() {
     socket.emit('join', location.hash.substr(1), name);
   });
 
+  $("body").on('keypress', function (e) {
+    if(e.which == 13) {
+      
+      $("#name").blur();
+
+      if ($("#join").is(":visible")) {
+        $("#join").trigger("click");
+      } 
+      if ($("#progress").is(":visible")) {
+        $("#progress").trigger("click");
+      }
+    }
+  });
+
   // HOST CLICKS
   $("#progress").click(function(){
     socket.emit('progress');
@@ -227,9 +241,11 @@ $(document).ready(function() {
   });
 
   function init() {
-    var preset = location.host.split(".")[0];
-    if (!preset.includes("localhost")) {
+    var preset = window.location.search.substr(1);
+    if (preset) {
       $("#name").val(preset);
+    } else {
+      $("#name").focus();
     }
   }
   init();
