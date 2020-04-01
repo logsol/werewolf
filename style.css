@@ -3,6 +3,7 @@ body {
   color: #bbb;
   font-family: 'Oswald', sans-serif;
   font-size: 1.5em;
+  user-select: none;
 }
 
 #progress, #game, #dead, #prejoin {
@@ -10,11 +11,21 @@ body {
 }
 
 #container {
-  max-width: 300px;
+  max-width: 400px;
   margin: 30px auto;
   border: 1px dotted rgba(255,255,255,0.25);
   padding: 5%;
   background-color: rgba(0,0,0,0.25);
+}
+
+@media screen and (max-width: 500px) {
+  body {
+    margin: 0;
+  }
+  #container {
+    margin: 0;
+    max-width: 100%;
+  }
 }
 
 button, input {
@@ -27,6 +38,8 @@ button, input {
   color: #bbb;
   font-size: 1em;
   font-family: 'Oswald', sans-serif;
+  outline: 0;
+  margin-top: 15px; 
 }
 
 button {
@@ -47,6 +60,8 @@ button {
 .role {
   font-size: 2em;
   display: block;
+  line-height: 1em;
+  margin: 5px 0;
 }
 
 #role, #dead {
@@ -65,22 +80,25 @@ button {
   text-transform: capitalize;
   color: #F27C38;
   text-align: center;
+  white-space: nowrap;
 }
 
 #players {
   margin: 0;
   padding: 0;
+  margin-top: 25px;
 }
+
 
 #players li {
   display: block;
   width: calc(33% - 17px);
   margin-right: 5px;
   margin-bottom: 5px;
-  padding: 5px;
+  padding: 0px 5px;
   border: 1px solid rgba(0,0,0,0.25);
   border-radius: 8px;
-  height: 150px;
+  height: 135px;
   float: left;
   list-style-type: none;
   background-color: rgba(0,0,0,0.25);
@@ -90,7 +108,7 @@ button {
 }
 
 #container .hostview li {
-  height: 185px;
+  height: 175px;
 }
 
 #selection {
@@ -104,6 +122,25 @@ button {
   font-size: 4em;
   text-align: center;
   cursor: default;
+}
+
+#selection #selalign {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 0.8em;
+  width: 100%;
+}
+
+#selection .role {
+  margin-top: 50px;
+}
+
+#selection .name {
+  white-space: normal;
 }
 
 .clearfix::after {

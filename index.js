@@ -88,7 +88,8 @@ io.on('connection', function(socket) {
       socket.emit('cheater!');
       return;
     }
-    game.players[index].dead = true;
+
+    game.players[index].isVictim = true;
     broadcastPresence(game);
   });
 
@@ -97,7 +98,7 @@ io.on('connection', function(socket) {
       socket.emit('cheater!');
       return;
     }
-    game.players[index].dead = false;
+    game.players[index].isVictim = false;
     broadcastPresence(game);
   });
 });
@@ -134,8 +135,7 @@ function createGame(id, socket) {
     id: id, 
     players: [],
     host: undefined,
-    state: STATE_WAIT,
-    victim: undefined
+    state: STATE_WAIT
   }
   games.push(game);
   socket.emit('created');
@@ -194,7 +194,8 @@ function findOrCreatePlayer(game, name, socket) {
       name: name,
       isHost: false,
       role: undefined,
-      dead: false, 
+      dead: false,
+      isVictim: false,
       socket: socket
     }
     game.players.push(player);
@@ -206,13 +207,20 @@ function findOrCreatePlayer(game, name, socket) {
 function listPlayers(game, player) {
   var players = [];
   for (var x in game.players) {
+
+    var reveal = undefined;
+    if (player.isHost || player.dead || game.players[x].dead) {
+      reveal = game.players[x].role;
+    }
+
     players.push({
       iy: (game.players[x] == player),
       nm: game.players[x].name,
       cn: game.players[x].socket.connected,
       dd: game.players[x].dead,
+      vc: game.players[x].isVictim,
       hs: game.players[x].isHost,
-      rv: game.players[x].dead ? game.players[x].role : undefined
+      rv: reveal
     })
   }
   return players;
@@ -329,14 +337,17 @@ function progress(game) {
       game.state = STATE_WITCH;
       break;
     case STATE_WITCH:
+      killVictims(game);
       game.state = STATE_DAY;
       break;
     case STATE_DAY:
+      killVictims(game);
       game.state = STATE_NIGHT;
       break;
   }
 
   emitHostAction(game);
+  broadcastPresence(game);
 
   if (previousState != game.state) {
     broadcastState(game);
@@ -374,6 +385,17 @@ function emitHostAction(game) {
   }
 }
 
+function killVictims(game) {
+  for (var x in game.players) {
+    var player = game.players[x];
+    if (player.isVictim) {
+      player.dead = true;
+      player.isVictim = false;
+    }
+  }
+}
+
+/*
 function emitWitchInfo(game) {
   var witch;
   var poisonables = [];
@@ -386,10 +408,10 @@ function emitWitchInfo(game) {
   }
   if (witch) {
     witch.socket.emit('witchInfo', {
-      vc: game.victim
     })
   }
 }
+*/
 
 /*
 function emitWolfInfo(game) {

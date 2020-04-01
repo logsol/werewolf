@@ -1,34 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Werwolf</title>
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<meta name="viewport" content="width=device-width, initial-scale=1"
+  <title>Werewolf</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
 
 <div id="container" class="clearfix">
 
   <div id="selection">
-    <span class="name"></span>
-    <span class="role">🌀</span>
+    <div id="selalign">
+      <span class="name"></span>
+      <span class="role">🌀</span>
+    </div>
   </div>
 
-  <p id="prejoin">
+  <div id="prejoin">
     Name: <input id="name" value="Karl"/>
     <button id="join">Join</button>
-  </p>
+  </div>
 	<button id="newgame">Create a new game</button>
   
-  <p id="game">
+  <div id="game">
     <span id="role"></span>
     <span id="state"></span>
     <ul id="players"></ul>
     <button id="progress">?</button>
-  </p>
+  </div>
 
 </div>
 
@@ -86,6 +88,7 @@ socket.on('host', function(msg){
 
 socket.on('joined', function(msg){
   $("#prejoin").hide();
+  $("#game").show();
 });
 
 socket.on('presence', function(msg){
@@ -108,10 +111,12 @@ socket.on('presence', function(msg){
       if (!player.hs) {
         var kill = $('<button class="kill">kill</button>');
         var revive = $('<button class="revive">revive</button>');
-        if (player.dd) {
+        if (player.vc) {
           li.append(revive);
         } else {
-          li.append(kill);
+          if (!player.dd) {
+            li.append(kill);
+          }
         }
       }
     }
@@ -121,12 +126,15 @@ socket.on('presence', function(msg){
     if (!player.cn) {
       $('.disconnected', li).show();
     }
-    if (player.rv) {
+    if (player.rv && !player.hs) {
       $('.reveal', li).show();
       $('.reveal', li).text(player.rv); 
     }
     if (player.dd) {
       $('.role', li).text("⚰️");
+    }
+    if (player.vc) {
+      $('.role', li).text("☠️");
     }
     if (player.hs) {
       $('.role', li).text("🗣");
