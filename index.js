@@ -39,9 +39,20 @@ io.on('connection', function(socket) {
   socket.on('disconnect', function(){
     console.log('user disconnected');
 
+    if (game && player) {
+      if (game.state == STATE_WAIT) {
+        for(var x in game.players) {
+          if (game.players[x] == player) {
+            game.players.splice(x, 1);
+          }
+        }
+      }
+    }
+
     if (player && player.isHost) {
       if (!game) throw new Error('has player but no game?');
       electHost(game);
+      emitHostAction(game);
     }
     
     if (game) {
@@ -57,6 +68,10 @@ io.on('connection', function(socket) {
   });
 
   socket.on('join', function(id, name) {
+    name = name.trim();
+    if (name.length < 1) {
+      return;
+    }
     var isCreator = !findGame(id);
     game = findOrCreateGame(id, socket);
     
@@ -139,7 +154,7 @@ function createGame(id, socket) {
   }
   games.push(game);
   socket.emit('created');
-  console.log('created:', id)
+  console.log('created:', id);
   return game;
 }
 
@@ -185,19 +200,12 @@ function findOrCreatePlayer(game, name, socket) {
   var player = findPlayer(game, name);
   
   if (player) {
-    var old = player.socket;
+    var deprecatedSocket = player.socket;
     player.socket = socket;
-    old.emit('deprecated');
-    old.disconnect();
+    deprecatedSocket.emit('deprecated');
+    deprecatedSocket.disconnect();
   } else {
-    player = {
-      name: name,
-      isHost: false,
-      role: undefined,
-      isDead: false,
-      isVictim: false,
-      socket: socket
-    }
+    player = createPlayer(name, socket);
     game.players.push(player);
   }
 
@@ -411,6 +419,35 @@ function isDead(game, role) {
     }
   }
   return true;
+}
+
+function resetGame(game) {
+
+  var repeaters = game.players;
+
+  game.state = STATE_WAIT;
+  game.host = undefined;
+  game.players = [];
+
+  for (var x in repeaters) {
+    var repeater = previousPlayers[x];
+    
+    if (repeater.socket.connected) {
+      var player = createPlayer(repeater.name, repeater.socket);
+      game.players.push(player);
+    }
+  }
+}
+
+function createPlayer(name, socket) {
+  return {
+    name: name,
+    isHost: false,
+    role: undefined,
+    isDead: false,
+    isVictim: false,
+    socket: socket
+  };
 }
 
 /*

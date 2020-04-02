@@ -6,6 +6,7 @@
   <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script src="//cdn.jsdelivr.net/jquery.color-animation/1/mainfile"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
@@ -51,16 +52,23 @@ var socket = io();
 var inGame = location.href.includes("#");
 var isHost = false;
 var role = undefined;
+var joined = false;
 
 socket.on('connect', function () {
 	if (inGame) {
     $("#newgame").hide();
-    $("#prejoin").show();
+    if (joined) {
+      $("#game").show();
+      $("#prejoin").hide();
+    } else {
+      $("#prejoin").show();
+      $("#game").hide();
+    }
 	}
 });
 
 socket.on('disconnect', function () {
-  location.reload();
+  //location.reload();
 });
 
 socket.on('deprecated', function () {
@@ -89,6 +97,7 @@ socket.on('host', function(msg){
 socket.on('joined', function(msg){
   $("#prejoin").hide();
   $("#game").show();
+  joined = true;
 });
 
 socket.on('presence', function(msg){
@@ -151,8 +160,17 @@ socket.on('presence', function(msg){
 });
 
 socket.on('state', function(msg) {
+
+  var previous = $("#state").text();
+
   var state = JSON.parse(msg);
   $("#state").text(state);
+
+  if (state.includes("Day")) {
+    $("body").removeClass("night");
+  } else {
+    $("body").addClass("night");
+  }
 });
 
 socket.on('role', function(msg) {
@@ -178,6 +196,7 @@ socket.on('action', function(msg) {
 // });
 
 $(document).ready(function() {
+
   // WINDOW
   $(window).on('hashchange', function(e) {
     location.reload();
@@ -230,6 +249,7 @@ $(document).ready(function() {
     var role = $(".role", li).text();
 
     if (role == "🌀") {
+      // TODO: XSS attack possible
       $("#selection .name").text(name);
       $("#selection .role").text(role);
       $("#selection").show();
@@ -239,6 +259,11 @@ $(document).ready(function() {
   $("#selection").click(function(){
     $("#selection").hide();
   });
+
+  // Prevent touch selecting on mobile
+  document.onselectstart = function() {
+    return false;
+  };
 
   function init() {
     var preset = window.location.search.substr(1);
