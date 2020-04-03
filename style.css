@@ -7,7 +7,7 @@ body {
   transition: background-color ease-in 1s;
 }
 
-#progress, #game, #dead, #prejoin, #winner {
+#progress, #game, #dead, #prejoin, #winner, #disconnected {
   display: none;
 }
 
@@ -154,7 +154,7 @@ button {
   border: 1px solid rgba(255,255,255,0.15);
 }
 
-#winner {
+#winner, #disconnected {
   border: 1px solid rgba(0,0,0,0.9);
   background-color: rgba(0,0,0,0.75);
   position: fixed;
@@ -163,10 +163,11 @@ button {
   width: 100%;
   height: 100%;
   text-align: center;
+  font-size: 4em;
 }
 
-#winner span {
-  font-size: 4em;
+#disconnected {
+  z-index: 10;
 }
 
 .clearfix::after {

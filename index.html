@@ -40,6 +40,12 @@
     </div>
   </div>
 
+  <div id="disconnected">
+    <div class="centeralign">
+      <span>🔌</span>
+    </div>
+  </div>
+
 </div>
 
 </body>
@@ -72,11 +78,17 @@ socket.on('connect', function () {
       $("#game").hide();
     }
 	}
+
+  $("#disconnected").hide();
+  if (joined) {
+    $("#join").trigger("click");
+  }
 });
 
 socket.on('disconnect', function () {
   // $("#container").empty();
   // $("#container").text("Lost connection.");
+  $("#disconnected").show();
 });
 
 socket.on('deprecated', function () {

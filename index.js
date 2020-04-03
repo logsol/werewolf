@@ -59,14 +59,10 @@ io.on('connection', function(socket) {
       emitHostAction(game);
       broadcastPresence(game);
     }
-    
+
     destroyEmptyGames();
   });
-
-  socket.on('reconnect', function(){
-    console.log('user reconnected', socket.id);
-  });
-
+  
   socket.on('newgame', function() {
     var id = generateGameId();
     socket.emit('generated', id);
@@ -110,7 +106,7 @@ io.on('connection', function(socket) {
   });
 
   socket.on('kill', function(index) {
-    if (!player.isHost || index >= game.players.length) {
+    if (!player || !player.isHost || index >= game.players.length) {
       socket.emit('cheater!');
       console.log("cheater")
       return;
@@ -121,7 +117,7 @@ io.on('connection', function(socket) {
   });
 
   socket.on('revive', function(index) {
-    if (!player.isHost || index >= game.players.length) {
+    if (!player || !player.isHost || index >= game.players.length) {
       socket.emit('cheater!');
       console.log("cheater")
       return;
