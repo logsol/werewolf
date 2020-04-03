@@ -62,7 +62,7 @@ io.on('connection', function(socket) {
 
     destroyEmptyGames();
   });
-  
+
   socket.on('newgame', function() {
     var id = generateGameId();
     socket.emit('generated', id);
@@ -356,8 +356,12 @@ function progress(game) {
         assignRoles(game);
         broadcastRoles(game);
         broadcastPresence(game);
-        game.state = STATE_NIGHT;
+        game.state = STATE_DAY;
       }
+      break;
+    case STATE_DAY:
+      killVictims(game);
+      game.state = STATE_NIGHT;
       break;
     case STATE_NIGHT:
       if(!isRoleDead(game, ROLE_SEER)) {
@@ -375,10 +379,6 @@ function progress(game) {
     case STATE_WITCH:
       killVictims(game);
       game.state = STATE_DAY;
-      break;
-    case STATE_DAY:
-      killVictims(game);
-      game.state = STATE_NIGHT;
       break;
     case STATE_OVER:
       game.state = STATE_WAIT;
