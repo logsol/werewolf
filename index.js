@@ -11,11 +11,14 @@ var STATE_SEER = '👁 Oracle time';
 var STATE_WITCH = '🧙‍♀️ Potion turn';
 var STATE_WOLFS = '🐺 Midnight snack';
 var STATE_DAY = '☀️ Daytime';
+var STATE_OVER = '🏁 Game Over';
 
 var ROLE_WOLF = '🐺';
 var ROLE_VILLAGER = '🤷‍♂️';
 var ROLE_SEER = '👁';
 var ROLE_WITCH = '🧙‍♀️';
+
+var MIN_PLAYERS = 4;
 
 // var ROLE_GIRL = '👧';
 // var ROLE_ARMOR = '🏹';
@@ -52,10 +55,10 @@ io.on('connection', function(socket) {
     if (player && player.isHost) {
       if (!game) throw new Error('has player but no game?');
       electHost(game);
-      emitHostAction(game);
     }
     
     if (game) {
+      emitHostAction(game);
       broadcastPresence(game);
     }
 
@@ -68,8 +71,11 @@ io.on('connection', function(socket) {
   });
 
   socket.on('join', function(id, name) {
-    name = name.trim();
-    if (name.length < 1) {
+
+    id = id.trim().toLowerCase();
+    name = name.trim().toLowerCase().replace(/(<([^>]+)>)/ig,"");
+
+    if (name.length < 1 || id.length < 4) {
       return;
     }
     var isCreator = !findGame(id);
@@ -86,12 +92,13 @@ io.on('connection', function(socket) {
     }
     broadcastState(game);
     broadcastPresence(game);
+    emitHostAction(game);
 
     insp(games, 3);
   });
 
   socket.on('progress', function() {
-    if (!player.isHost) {
+    if (!player || !player.isHost) {
       socket.emit('cheater!');
       return;
     }
@@ -123,14 +130,12 @@ http.listen(3000, function(){
 });
 
 function findGame(id) {
-  var game;
   for (var x in games) {
     if (games[x].id == id) {
-      game = games[x];
-      break;
+      return games[x];
     }
   }
-  return game;
+  return undefined;
 }
 
 function generateGameId() {
@@ -178,7 +183,6 @@ function joinGame(game, name, socket) {
       player.role = ROLE_VILLAGER;
       player.isDead = true;
     }
-
   }
 
   console.log(name, 'joined', game.id);
@@ -217,7 +221,7 @@ function listPlayers(game, player) {
   for (var x in game.players) {
 
     var reveal = undefined;
-    if (player.isHost || player.isDead || game.players[x].isDead) {
+    if (player.isHost || player.isDead || game.players[x].isDead || game.state == STATE_OVER) {
       reveal = game.players[x].role;
     }
 
@@ -262,6 +266,10 @@ function destroyEmptyGames() {
 }
 
 function electHost(game) {
+  if (!game.players.length) {
+    game.host = undefined;
+    return;
+  }
   game.host = 0;
   var host = game.players[game.host];
   host.isHost = true;
@@ -284,9 +292,21 @@ function electHost(game) {
 
 // *******************  game  *********************
 
-function broadcastState(game) {
+function broadcastState(game, winner) {
+
+  var winner = undefined;
+  if (game.state != STATE_WAIT) {
+    winner = checkWinner(game);
+    if (winner) {
+      game.state = STATE_OVER;
+    }
+  }
+
   for (var x in game.players) {
-    game.players[x].socket.emit('state', JSON.stringify(game.state))
+    game.players[x].socket.emit('state', JSON.stringify({
+      st: game.state,
+      wn: winner
+    }));
   }
 }
 
@@ -323,20 +343,21 @@ function assignRoles(game) {
     }
   }
 
-  broadcastRoles(game);
   insp(game, 2);
 }
 
 function progress(game) {
-  var previousState = game.state;
   switch (game.state) {
     case STATE_WAIT:
-      assignRoles(game);
-      broadcastPresence(game);
-      game.state = STATE_NIGHT;
+      if (game.players.length >= MIN_PLAYERS) {
+        assignRoles(game);
+        broadcastRoles(game);
+        broadcastPresence(game);
+        game.state = STATE_NIGHT;
+      }
       break;
     case STATE_NIGHT:
-      if(!isDead(game, ROLE_SEER)) {
+      if(!isRoleDead(game, ROLE_SEER)) {
         game.state = STATE_SEER;
         break;
       }
@@ -344,7 +365,7 @@ function progress(game) {
       game.state = STATE_WOLFS;
       break;
     case STATE_WOLFS:
-      if(!isDead(game, ROLE_SEER)) {
+      if(!isRoleDead(game, ROLE_WITCH)) {
         game.state = STATE_WITCH;
         break;
       }
@@ -356,26 +377,36 @@ function progress(game) {
       killVictims(game);
       game.state = STATE_NIGHT;
       break;
+    case STATE_OVER:
+      game.state = STATE_WAIT;
+      resetGame(game);
+      broadcastRoles(game);
+      break;
   }
 
+  broadcastState(game);
   emitHostAction(game);
   broadcastPresence(game);
-
-  if (previousState != game.state) {
-    broadcastState(game);
-  }
+  
   insp(game, 2);
 }
 
 function emitHostAction(game) {
-  var action;
+
+  if (!game.players.length) {
+    return;
+  }
+
+  var action = '';
 
   switch (game.state) {
     case STATE_WAIT:
-      action = 'Start Game';
+      if (game.players.length >= MIN_PLAYERS) {
+        action = 'Start Game';
+      }
       break;
     case STATE_NIGHT:
-      if(!isDead(game, ROLE_SEER)) {
+      if(!isRoleDead(game, ROLE_SEER)) {
         action = 'Wake up Seer';
         break;
       }
@@ -383,7 +414,7 @@ function emitHostAction(game) {
       action = 'Wake up Wolfs';
       break;
     case STATE_WOLFS:
-      if(!isDead(game, ROLE_WITCH)) {
+      if(!isRoleDead(game, ROLE_WITCH)) {
         action = 'Wake up Witch';
         break;
       }
@@ -393,12 +424,13 @@ function emitHostAction(game) {
     case STATE_DAY:
       action = 'Night comes';
       break;
+    case STATE_OVER:
+      action = "Start a new Game"
+      break;
   }
 
-  if (action) {
-    var host = game.players[game.host];
-    host.socket.emit('action', action);
-  }
+  var host = game.players[game.host];
+  host.socket.emit('action', action);
 }
 
 function killVictims(game) {
@@ -411,7 +443,7 @@ function killVictims(game) {
   }
 }
 
-function isDead(game, role) {
+function isRoleDead(game, role) {
   for (var x in game.players) {
     var player = game.players[x];
     if (player.role == role) {
@@ -430,13 +462,15 @@ function resetGame(game) {
   game.players = [];
 
   for (var x in repeaters) {
-    var repeater = previousPlayers[x];
+    var repeater = repeaters[x];
     
     if (repeater.socket.connected) {
       var player = createPlayer(repeater.name, repeater.socket);
       game.players.push(player);
     }
   }
+
+  electHost(game);
 }
 
 function createPlayer(name, socket) {
@@ -448,6 +482,37 @@ function createPlayer(name, socket) {
     isVictim: false,
     socket: socket
   };
+}
+
+function checkWinner(game) {
+
+  var goodStillAlive = false;
+  var evilStillAlive = false;
+
+  for (var x in game.players) {
+    var player = game.players[x];
+
+    if (player.isHost) {
+      continue;
+    }
+
+    if (!player.isDead) {
+      if (player.role == ROLE_WOLF) {
+        evilStillAlive = true;
+      } else {
+        goodStillAlive = true;
+      }
+    }
+  }
+
+  if (!goodStillAlive && !evilStillAlive) {
+    return "🤡";
+  }
+
+  if (goodStillAlive != evilStillAlive) {
+    return evilStillAlive ? "🐺" : "🤷‍♂️";
+  }
+  return undefined;
 }
 
 /*

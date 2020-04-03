@@ -13,13 +13,6 @@
 
 <div id="container" class="clearfix">
 
-  <div id="selection">
-    <div id="selalign">
-      <span class="name"></span>
-      <span class="role">🌀</span>
-    </div>
-  </div>
-
   <div id="prejoin">
     Name: <input id="name" value=""/>
     <button id="join">Join</button>
@@ -31,6 +24,20 @@
     <span id="state"></span>
     <ul id="players"></ul>
     <button id="progress">?</button>
+  </div>
+
+  <div id="selection">
+    <div class="centeralign">
+      <span class="name"></span>
+      <span class="role">🌀</span>
+    </div>
+  </div>
+
+  <div id="winner">
+    <div class="centeralign">
+      <span class="medal">🏅</span>
+      <span class="role"></span>
+    </div>
   </div>
 
 </div>
@@ -53,6 +60,7 @@ var inGame = location.href.includes("#");
 var isHost = false;
 var role = undefined;
 var joined = false;
+var winnerDismissed = false;
 
 socket.on('connect', function () {
 	if (inGame) {
@@ -101,8 +109,15 @@ socket.on('joined', function(msg){
 });
 
 socket.on('presence', function(msg){
+
+  var isPlayState = true;
+  if ($("#state").text().includes("⏳") || $("#state").text().includes("🏁")) {
+    isPlayState = false;
+  }
+
   var players = JSON.parse(msg);
   $("#players").empty();
+
   for (var x in players) {
     var player = players[x];
 
@@ -116,7 +131,7 @@ socket.on('presence', function(msg){
 
     var li = $(liHtml);
 
-    if(isHost && role) {
+    if(isHost && isPlayState) {
       if (!player.hs) {
         var kill = $('<button class="kill">kill</button>');
         var revive = $('<button class="revive">revive</button>');
@@ -161,15 +176,24 @@ socket.on('presence', function(msg){
 
 socket.on('state', function(msg) {
 
-  var previous = $("#state").text();
+  var data = JSON.parse(msg);
+  $("#state").text(data.st);
 
-  var state = JSON.parse(msg);
-  $("#state").text(state);
-
-  if (state.includes("Day")) {
+  if (data.st.includes("Day") || data.st.includes("Wait")) {
     $("body").removeClass("night");
   } else {
     $("body").addClass("night");
+  }
+
+  if (data.wn) {
+    $("#winner .role").text(data.wn);
+    if (!winnerDismissed) {
+      $("#winner").show();
+    }
+  } else {
+    $("#winner .role").text("");
+    $("#winner").hide();
+    winnerDismissed = false;
   }
 });
 
@@ -180,7 +204,12 @@ socket.on('role', function(msg) {
 });
 
 socket.on('action', function(msg) {
-  $("#progress").text(msg);
+  if (msg) {
+    $("#progress").text(msg);
+    $("#progress").show();
+  } else {
+    $("#progress").hide();
+  }
 });
 
 // socket.on('wolfinfo', function(msg) {
@@ -202,14 +231,23 @@ $(document).ready(function() {
     location.reload();
   });
 
+    // Prevent touch selecting on mobile
+  document.onselectstart = function() {
+    return false;
+  };
+
   // CLICKS
   $("#newgame").click(function(){
     socket.emit('newgame');
   });
 
   $("#join").click(function(){
-    var name = $("#name").val();
-    socket.emit('join', location.hash.substr(1), name);
+    var userName = $("#name").val();
+    var channelName = location.hash.substr(1);
+
+    if (userName && channelName) {
+      socket.emit('join', channelName, userName);
+    }
   });
 
   $("body").on('keypress', function (e) {
@@ -249,7 +287,6 @@ $(document).ready(function() {
     var role = $(".role", li).text();
 
     if (role == "🌀") {
-      // TODO: XSS attack possible
       $("#selection .name").text(name);
       $("#selection .role").text(role);
       $("#selection").show();
@@ -260,10 +297,10 @@ $(document).ready(function() {
     $("#selection").hide();
   });
 
-  // Prevent touch selecting on mobile
-  document.onselectstart = function() {
-    return false;
-  };
+  $("#winner").click(function(){
+    $("#winner").hide();
+    winnerDismissed = true;
+  });
 
   function init() {
     var preset = window.location.search.substr(1);

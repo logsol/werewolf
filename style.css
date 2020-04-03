@@ -7,7 +7,7 @@ body {
   transition: background-color ease-in 1s;
 }
 
-#progress, #game, #dead, #prejoin {
+#progress, #game, #dead, #prejoin, #winner {
   display: none;
 }
 
@@ -127,7 +127,7 @@ button {
   cursor: default;
 }
 
-#selection #selalign {
+.centeralign {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -152,6 +152,21 @@ button {
 
 .night #players li {
   border: 1px solid rgba(255,255,255,0.15);
+}
+
+#winner {
+  border: 1px solid rgba(0,0,0,0.9);
+  background-color: rgba(0,0,0,0.75);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+}
+
+#winner span {
+  font-size: 4em;
 }
 
 .clearfix::after {
