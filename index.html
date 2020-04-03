@@ -58,7 +58,6 @@ var STATE_WAKE = 'wake';
 var socket = io();
 var inGame = location.href.includes("#");
 var isHost = false;
-var role = undefined;
 var joined = false;
 var winnerDismissed = false;
 
@@ -198,7 +197,7 @@ socket.on('state', function(msg) {
 });
 
 socket.on('role', function(msg) {
-  role = JSON.parse(msg);
+  var role = JSON.parse(msg);
   $("#role").text(role);
   $("#game").show();
 });
@@ -212,18 +211,6 @@ socket.on('action', function(msg) {
   }
 });
 
-// socket.on('wolfinfo', function(msg) {
-//   var wolfinfo = JSON.parse(msg);
-//   for (var x in wolfinfo.wolfs) {
-//     var wf = wolfinfo.wolfs[x].wf;
-//     $("#players li").foreach(function(i, el) {
-//       if (i == wf) {
-//         el.addClass('wolf');
-//       }
-//     });
-//   }
-// });
-
 $(document).ready(function() {
 
   // WINDOW
@@ -231,12 +218,12 @@ $(document).ready(function() {
     location.reload();
   });
 
-    // Prevent touch selecting on mobile
+  // Prevent touch selecting on mobile
   document.onselectstart = function() {
     return false;
   };
 
-  // CLICKS
+  // CLICKS & TAPS
   $("#newgame").click(function(){
     socket.emit('newgame');
   });
@@ -245,40 +232,11 @@ $(document).ready(function() {
     var userName = $("#name").val();
     var channelName = location.hash.substr(1);
 
+    localStorage.setItem('username', userName);
+
     if (userName && channelName) {
       socket.emit('join', channelName, userName);
     }
-  });
-
-  $("body").on('keypress', function (e) {
-    if(e.which == 13) {
-      
-      $("#name").blur();
-
-      if ($("#join").is(":visible")) {
-        $("#join").trigger("click");
-      } 
-      if ($("#progress").is(":visible")) {
-        $("#progress").trigger("click");
-      }
-    }
-  });
-
-  // HOST CLICKS
-  $("#progress").click(function(){
-    socket.emit('progress');
-  });
-
-  $("#players").on('click', '.kill', function(e){
-    var index = $(e.target).parent().attr('id');
-    socket.emit('kill', index);
-    e.stopPropagation();
-  });
-
-  $("#players").on('click', '.revive', function(e){
-    var index = $(e.target).parent().attr('id');
-    socket.emit('revive', index);
-    e.stopPropagation();
   });
 
   $("#players").on('click', function(e){
@@ -302,11 +260,48 @@ $(document).ready(function() {
     winnerDismissed = true;
   });
 
+  // HOST CLICKS
+  $("#progress").click(function(){
+    socket.emit('progress');
+  });
+
+  $("#players").on('click', '.kill', function(e){
+    var index = $(e.target).parent().attr('id');
+    socket.emit('kill', index);
+    e.stopPropagation();
+  });
+
+  $("#players").on('click', '.revive', function(e){
+    var index = $(e.target).parent().attr('id');
+    socket.emit('revive', index);
+    e.stopPropagation();
+  });
+
+  // ENTER KEY
+  $("body").on('keypress', function (e) {
+    if(e.which == 13) {
+      
+      $("#name").blur();
+
+      if ($("#join").is(":visible")) {
+        $("#join").trigger("click");
+      } 
+      if ($("#progress").is(":visible")) {
+        $("#progress").trigger("click");
+      }
+    }
+  });
+
   function init() {
     var preset = window.location.search.substr(1);
+
+    if (!preset) {
+      preset = localStorage.getItem('username');
+    }
+
     if (preset) {
       $("#name").val(preset);
-      $("#join").trigger("click");
+      //$("#join").trigger("click");
     } else {
       $("#name").focus();
     }
