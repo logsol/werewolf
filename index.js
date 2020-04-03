@@ -36,33 +36,35 @@ app.get('/style.css', function(req, res) {
 
 io.on('connection', function(socket) {
 
+  console.log('user connected', socket.id);
+
   var game = undefined;
   var player = undefined;
   
   socket.on('disconnect', function(){
-    console.log('user disconnected');
+    console.log('user disconnected', socket.id);
 
-    if (game && player) {
+    player = undefined;
+
+    if (game) {
       if (game.state == STATE_WAIT) {
         for(var x in game.players) {
-          if (game.players[x] == player) {
+          if (game.players[x].socket.id == socket.id) {
             game.players.splice(x, 1);
           }
         }
       }
-    }
 
-    if (player && player.isHost) {
-      if (!game) throw new Error('has player but no game?');
       electHost(game);
-    }
-    
-    if (game) {
       emitHostAction(game);
       broadcastPresence(game);
     }
-
+    
     destroyEmptyGames();
+  });
+
+  socket.on('reconnect', function(){
+    console.log('user reconnected', socket.id);
   });
 
   socket.on('newgame', function() {
@@ -76,12 +78,13 @@ io.on('connection', function(socket) {
     name = name.trim().toLowerCase().replace(/(<([^>]+)>)/ig,"");
 
     if (name.length < 1 || id.length < 4) {
+      console.log("Rejected join for " + name + " in " + id + ".");
       return;
     }
-    var isCreator = !findGame(id);
+
     game = findOrCreateGame(id, socket);
-    
     player = joinGame(game, name, socket);
+
     if (player == game.players[0]) {
       electHost(game);
       emitHostAction(game);
@@ -100,6 +103,7 @@ io.on('connection', function(socket) {
   socket.on('progress', function() {
     if (!player || !player.isHost) {
       socket.emit('cheater!');
+      console.log("cheater")
       return;
     }
     progress(game);
@@ -108,6 +112,7 @@ io.on('connection', function(socket) {
   socket.on('kill', function(index) {
     if (!player.isHost || index >= game.players.length) {
       socket.emit('cheater!');
+      console.log("cheater")
       return;
     }
 
@@ -118,6 +123,7 @@ io.on('connection', function(socket) {
   socket.on('revive', function(index) {
     if (!player.isHost || index >= game.players.length) {
       socket.emit('cheater!');
+      console.log("cheater")
       return;
     }
     game.players[index].isVictim = false;
@@ -206,8 +212,9 @@ function findOrCreatePlayer(game, name, socket) {
   if (player) {
     var deprecatedSocket = player.socket;
     player.socket = socket;
+    player.socketId = socket.id
     deprecatedSocket.emit('deprecated');
-    deprecatedSocket.disconnect();
+    //deprecatedSocket.disconnect();
   } else {
     player = createPlayer(name, socket);
     game.players.push(player);
@@ -394,6 +401,7 @@ function progress(game) {
 function emitHostAction(game) {
 
   if (!game.players.length) {
+    console.log("Cant emit host action without any players")
     return;
   }
 
@@ -480,7 +488,8 @@ function createPlayer(name, socket) {
     role: undefined,
     isDead: false,
     isVictim: false,
-    socket: socket
+    socket: socket,
+    socketId: socket.id
   };
 }
 

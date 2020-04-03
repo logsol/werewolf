@@ -75,12 +75,16 @@ socket.on('connect', function () {
 });
 
 socket.on('disconnect', function () {
-  //location.reload();
+  // $("#container").empty();
+  // $("#container").text("Lost connection.");
 });
 
 socket.on('deprecated', function () {
-  window.alert("You are playing in another window now.");
-  location.href = "/";
+  $("#container").empty();
+  $("#container").text("You are playing in another window now.");
+  setTimeout(function(){
+    socket.disconnect();
+  }, 500);
 });
 
 socket.on('generated', function(msg){
