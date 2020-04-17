@@ -59,7 +59,7 @@ button {
 }
 
 .role {
-  font-size: 2em;
+  font-size: 45px;
   display: block;
   line-height: 1em;
   margin: 5px 0;
@@ -140,6 +140,7 @@ button {
 
 #selection .role {
   margin-top: 50px;
+  font-size: 110px;
 }
 
 #selection .name {
@@ -168,6 +169,15 @@ button {
 
 #disconnected {
   z-index: 10;
+}
+
+#legend {
+  margin-top: 40px;
+  padding: 5px;
+}
+
+#legend li {
+  list-style-type: none;
 }
 
 .clearfix::after {
